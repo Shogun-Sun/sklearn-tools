@@ -1,0 +1,54 @@
+<!-- Plugin Configuration File: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
+<idea-plugin>
+    <!-- Unique identifier of the plugin. It should be FQN, cannot be changed between the plugin versions. -->
+    <id>sun.shogun.sklearn-tools</id>
+
+    <!-- Public plugin name should be written in Title Case.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-name -->
+    <name>Sklearn-tools</name>
+
+    <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
+<!--    <vendor url="https://www.yourcompany.com">YourCompany</vendor>-->
+
+    <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
+         Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
+    <description><![CDATA[
+        A small plugin for quickly training models using the sklearn library.
+    ]]></description>
+
+    <!-- Product and plugin compatibility requirements.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
+
+    <depends>com.intellij.modules.json</depends>
+    <depends>com.intellij.modules.xml</depends>
+    <depends>PythonCore</depends>
+    <!-- Extensions defined by the plugin.
+         Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
+    <extensions defaultExtensionNs="com.intellij">
+    </extensions>
+
+    <actions>
+        <group
+            id="ShogunSun.ActionsGroup"
+            text="Sklearn tools"
+            description="Actions for Sklern-tools plugin"
+            popup="true">
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </group>
+
+        <action class="sun.shogun.sklearntools.CreateRequirementsTxt"
+                id="sun.shogun.sklearntools.CreateRequirementsTxt"
+                text="create requirements.txt"
+                description="Insert imports in file and create requirements.txt">
+            <add-to-group group-id="ShogunSun.ActionsGroup" anchor="last"/>
+        </action>
+
+        <action class="sun.shogun.sklearntools.InsertDatasetLoader"
+                id="sun.shogun.sklearntools.InsertDatasetLoader"
+                text="Load dataset"
+                description="Insert codeblock for load dataset">
+            <add-to-group group-id="ShogunSun.ActionsGroup" anchor="last"/>
+        </action>
+
+    </actions>
+</idea-plugin>

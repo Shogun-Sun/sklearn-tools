@@ -13,7 +13,8 @@ class CreateRequirementsTxt : AnAction() {
         "pandas",
         "pandas-stubs",
         "scikit-learn",
-        "matplotlib"
+        "matplotlib",
+        "notebook"
     )
 
     override fun actionPerformed(e: AnActionEvent) {

@@ -36,19 +36,65 @@
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </group>
 
+        <!-- Подгруппа для препроцессинга -->
+        <group
+            id="ShogunSun.PreprocessingGroup"
+            text="Preprocessing"
+            description="Dataset preprocessing actions"
+            popup="true">
+            <add-to-group group-id="ShogunSun.ActionsGroup" anchor="last"/>
+        </group>
+
+        <!-- Остальные действия -->
         <action class="sun.shogun.sklearntools.CreateRequirementsTxt"
-                id="sun.shogun.sklearntools.CreateRequirementsTxt"
-                text="create requirements.txt"
-                description="Insert imports in file and create requirements.txt">
+            id="sun.shogun.sklearntools.CreateRequirementsTxt"
+            text="Create base requirements.txt"
+            description="Insert imports in file and create requirements.txt">
             <add-to-group group-id="ShogunSun.ActionsGroup" anchor="last"/>
         </action>
 
+        <!-- Действия по препроцессингу теперь добавляем в подгруппу -->
         <action class="sun.shogun.sklearntools.InsertDatasetLoader"
-                id="sun.shogun.sklearntools.InsertDatasetLoader"
-                text="Load dataset"
-                description="Insert codeblock for load dataset">
-            <add-to-group group-id="ShogunSun.ActionsGroup" anchor="last"/>
+            id="sun.shogun.sklearntools.InsertDatasetLoader"
+            text="Load dataset"
+            description="Insert codeblock for load dataset">
+            <add-to-group group-id="ShogunSun.PreprocessingGroup" anchor="last"/>
         </action>
 
+        <action class="sun.shogun.sklearntools.InsertDatasetPreprocessingTemplate"
+            id="sun.shogun.sklearntools.InsertDatasetPreprocessingTemplate"
+            text="Dataset preprocessing"
+            description="Dataset Preprocessing">
+            <add-to-group group-id="ShogunSun.PreprocessingGroup" anchor="last"/>
+        </action>
+
+        <action class="sun.shogun.sklearntools.InsertOutlierDetectionTemplate"
+            id="sun.shogun.sklearntools.InsertOutlierDetectionTemplate"
+            text="OutlierDetection"
+            description="Template for outlier detection">
+            <add-to-group group-id="ShogunSun.PreprocessingGroup" anchor="last"/>
+        </action>
+
+        <action class="sun.shogun.sklearntools.InsertFeatureEncodingTemplate"
+            id="sun.shogun.sklearntools.InsertFeatureEncodingTemplate"
+            text="Encoding Template"
+            description="Template for encoding">
+            <add-to-group group-id="ShogunSun.PreprocessingGroup" anchor="last"/>
+        </action>
+
+        <action class="sun.shogun.sklearntools.InsertFeatureSelectionTemplate"
+            id="sun.shogun.sklearntools.InsertFeatureSelectionTemplate"
+            text="Feature Selection Template"
+            description="Feature Selection Template">
+            <add-to-group group-id="ShogunSun.ActionsGroup"/>
+        </action>
+
+        <action class="sun.shogun.sklearntools.InsertModelTrainingTemplate"
+            id="sun.shogun.sklearntools.InsertModelTrainingTemplate"
+            text="Model Training"
+            description="Model Training Template">
+            <add-to-group group-id="ShogunSun.ActionsGroup"/>
+        </action>
     </actions>
+
 </idea-plugin>

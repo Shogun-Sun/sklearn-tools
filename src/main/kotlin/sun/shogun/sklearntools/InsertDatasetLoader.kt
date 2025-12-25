@@ -8,6 +8,7 @@ import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.vfs.VirtualFile
+import java.util.zip.ZipFile
 
 class InsertDatasetLoader : AnAction() {
 
@@ -17,73 +18,135 @@ class InsertDatasetLoader : AnAction() {
         val project = e.project ?: return
         val editor = e.getData(CommonDataKeys.EDITOR) ?: return
 
-        // Диалог выбора одного или двух файлов
-        val descriptor = FileChooserDescriptor(true, false, false, false, false, true).apply {
-            title = "Select dataset file(s) (CSV or ZIP)"
-            withShowHiddenFiles(true)
+        val descriptor = FileChooserDescriptor(true, false, false, false, false, false).apply {
+            title = "Select dataset (CSV or ZIP)"
         }
-        val selectedFiles: Array<VirtualFile> = FileChooser.chooseFiles(descriptor, project, null)
+        val file = FileChooser.chooseFile(descriptor, project, null) ?: return
 
-        if (selectedFiles.isEmpty()) {
-            Messages.showInfoMessage(project, "No file selected", "Info")
-            return
+        val (imports, code) = when (file.extension?.lowercase()) {
+            "csv" -> handleCsv(file, project)
+            "zip" -> handleZip(file, project)
+            else -> {
+                Messages.showErrorDialog(project, "Unsupported file type", "Error")
+                return
+            }
         }
-
-        val (imports, code) = generateLoaderCodeAndImports(selectedFiles)
 
         WriteCommandAction.runWriteCommandAction(project) {
             val document = editor.document
-
-            // Вставляем необходимые импорты перед кодом
             importsInserter.insertImports(document, imports)
-
-            // Добавляем шаблон кода после импортов
-            val fullText = document.text
-            document.setText(fullText + "\n\n" + code)
+            document.setText(document.text + "\n\n" + code)
         }
     }
 
-    /**
-     * Генерирует код загрузки данных и список импортов, необходимых для работы этого кода
-     */
-    private fun generateLoaderCodeAndImports(files: Array<VirtualFile>): Pair<List<String>, String> {
-        val imports = mutableSetOf(
-            "import pandas as pd"
-        )
-        val codeBuilder = StringBuilder()
+    // ===== CSV =====
+    private fun handleCsv(trainFile: VirtualFile, project: com.intellij.openapi.project.Project): Pair<List<String>, String> {
+        val hasTest = Messages.showYesNoDialog(
+            project,
+            "Do you have a separate test dataset?",
+            "Test dataset",
+            Messages.getQuestionIcon()
+        ) == Messages.YES
 
-        files.forEachIndexed { index, file ->
-            when (file.extension?.lowercase()) {
-                "zip" -> {
-                    imports.add("import zipfile")
-                    imports.add("import os")
-
-                    codeBuilder.append("""
-                        zip_path_${index + 1} = "${file.path}"
-                        extract_dir_${index + 1} = "data_${index + 1}"
-
-                        with zipfile.ZipFile(zip_path_${index + 1}, 'r') as zip_ref:
-                            zip_ref.extractall(extract_dir_${index + 1})
-
-                        csv_files_${index + 1} = [f for f in os.listdir(extract_dir_${index + 1}) if f.endswith('.csv')]
-                        if not csv_files_${index + 1}:
-                            raise FileNotFoundError("No CSV file found in the zip archive")
-                        ${if (files.size == 1) "df" else "df_${if (index == 0) "train" else "test"}"} = pd.read_csv(os.path.join(extract_dir_${index + 1}, csv_files_${index + 1}[0]))
-                        
-                    """.trimIndent())
-                }
-
-                "csv" -> {
-                    codeBuilder.append("${if (files.size == 1) "df" else "df_${if (index == 0) "train" else "test"}"} = pd.read_csv(\"${file.path}\")\n")
-                }
-
-                else -> {
-                    codeBuilder.append("# Unsupported file type: ${file.name}\n")
-                }
+        var testFile: VirtualFile? = null
+        if (hasTest) {
+            val testDescriptor = FileChooserDescriptor(true, false, false, false, false, false).apply {
+                title = "Select test dataset (CSV)"
             }
-            codeBuilder.append("\n")
+            testFile = FileChooser.chooseFile(testDescriptor, project, null)
         }
 
-        return imports.toList() to codeBuilder.toString()
+        val imports = mutableSetOf("import pandas as pd")
+        val code = buildString {
+            append("""df_train = pd.read_csv("${trainFile.path}")""")
+            if (testFile != null) {
+                append("\n\ndf_test = pd.read_csv(\"${testFile.path}\")")
+            }
+        }
+
+        return imports.toList() to code
     }
+
+    // ===== ZIP =====
+    private fun handleZip(zipFile: VirtualFile, project: com.intellij.openapi.project.Project): Pair<List<String>, String> {
+        val csvNames = getCsvFromZip(zipFile.path)
+        if (csvNames.isEmpty()) {
+            Messages.showErrorDialog(project, "No CSV files in archive", "Error")
+            return emptyList<String>() to ""
+        }
+
+        val imports = mutableSetOf("import pandas as pd", "import zipfile")
+
+        // --- пользователь выбирает TRAIN и TEST ---
+        val trainCsv: String
+        val testCsv: String?
+
+        if (csvNames.size == 1) {
+            trainCsv = csvNames.first()
+            testCsv = null
+        } else {
+            Messages.showInfoMessage(
+                project,
+                "Archive contains ${csvNames.size} CSV files.\nPlease choose train and test datasets.",
+                "Select datasets"
+            )
+
+            val trainIndex = Messages.showChooseDialog(
+                project,
+                "Select TRAIN dataset",
+                "Train CSV",
+                null,
+                csvNames.toTypedArray(),
+                csvNames.first()
+            ) ?: 0  // если отменили диалог, берем первый элемент
+
+            trainCsv = csvNames[trainIndex]
+
+            val remaining = csvNames.filter { it != trainCsv }
+            testCsv = if (remaining.isNotEmpty()) {
+                val testIndex = Messages.showChooseDialog(
+                    project,
+                    "Select TEST dataset",
+                    "Test CSV",
+                    null,
+                    remaining.toTypedArray(),
+                    remaining.first()
+                ) ?: 0
+                remaining[testIndex]
+            } else null
+
+        }
+
+        // --- генерируем Python-код ---
+        val code = buildString {
+            append(
+                """
+zip_path = "${zipFile.path}"
+
+with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+    with zip_ref.open("$trainCsv") as f:
+        df_train = pd.read_csv(f)
+""".trimIndent()
+            )
+
+            if (testCsv != null) {
+                append("\n") // перенос строки между блоками
+                append(
+                    "    with zip_ref.open(\"$testCsv\") as f:\n" +
+                            "        df_test = pd.read_csv(f)\n"
+                )
+            }
+        }
+
+
+
+        return imports.toList() to code
+    }
+
+    private fun getCsvFromZip(zipPath: String): List<String> =
+        ZipFile(zipPath).use { zip ->
+            zip.entries().toList()
+                .filter { !it.isDirectory && it.name.endsWith(".csv") }
+                .map { it.name }
+        }
 }
